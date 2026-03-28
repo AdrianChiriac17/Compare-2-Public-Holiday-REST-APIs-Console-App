@@ -1,0 +1,25 @@
+# .gitignore
+# Ignore build outputs
+bin/
+obj/
+
+# Ignore environment variables
+.env
+.env.*
+!.env.example
+
+# Ignore Visual Studio specifics
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Ignore Mac files
+.DS_Store
+
+# Ignore InspirationFiles
+InspirationFiles/
+
+#For some reason Ignore .sfdx
+.sfdx/

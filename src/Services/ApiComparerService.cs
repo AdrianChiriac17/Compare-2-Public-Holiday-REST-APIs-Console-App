@@ -20,7 +20,7 @@ public class ApiComparerService
 
     public async Task RunComparisonsAsync(int year)
     {
-        string[] targetCountries = { "RO", "MK", "IN", "CR", "BO", "CO" };
+        string[] targetCountries = { "GB-ENG", "RO", "MK", "IN", "CR", "BO", "CO" };
 
         Console.WriteLine($"\n===== STARTING COMPARISON FOR YEAR {year} =====\n");
 

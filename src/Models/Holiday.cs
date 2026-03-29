@@ -2,6 +2,7 @@ namespace HolidayApiComparer.Models;
 
 public class Holiday
 {
-    public string Name { get; set; } = string.Empty;
+    public string? CountryCode { get; set; }
     public DateTime Date { get; set; }
+    public string? Description { get; set; }
 }

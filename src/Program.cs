@@ -1,12 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using HolidayApiComparer.Interfaces;
 using HolidayApiComparer.Services;
-using System;
-using System.Threading.Tasks;
 using DotNetEnv;
 
 // Load environment variables from .env file
-Env.Load();
+DotNetEnv.Env.TraversePath().Load();
 
 // Setup Dependency Injection
 var serviceProvider = new ServiceCollection()
@@ -15,10 +13,20 @@ var serviceProvider = new ServiceCollection()
     .AddKeyedTransient<IHolidayProvider, CalendarificApi>("calendarific")
     .BuildServiceProvider();
 
-// Example magic: getting them out of the DI container
 var nagerService = serviceProvider.GetRequiredKeyedService<IHolidayProvider>("nager");
 var calendarificService = serviceProvider.GetRequiredKeyedService<IHolidayProvider>("calendarific");
 
 // Test call
-await nagerService.GetNatHolidaysForCountryForYear("US", 2026);
-await calendarificService.GetNatHolidaysForCountryForYearNoWeekends("US", 2026);
+var nagerHolidays = await nagerService.GetNatHolidaysForCountryForYear("RO", 2026);
+Console.WriteLine($"\n--- Nager API Holidays for RO in 2026 ({nagerHolidays.Count}) ---");
+foreach (var holiday in nagerHolidays)
+{
+    Console.WriteLine($"- {holiday.Date:yyyy-MM-dd}: {holiday.Description}");
+}
+
+var calendarificHolidays = await calendarificService.GetNatHolidaysForCountryForYear("RO", 2026);
+Console.WriteLine($"\n--- Calendarific API Holidays for US in 2026 ({calendarificHolidays.Count}) ---");
+foreach (var holiday in calendarificHolidays)
+{
+    Console.WriteLine($"- {holiday.Date:yyyy-MM-dd}: {holiday.Description}");
+}

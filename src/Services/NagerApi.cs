@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using HolidayApiComparer.Interfaces;
 using HolidayApiComparer.Models;
@@ -9,24 +12,80 @@ namespace HolidayApiComparer.Services;
 public class NagerApi : IHolidayProvider
 {
     private readonly string _apiUrl;
+    private readonly HttpClient _httpClient;
 
     public NagerApi()
     {
         _apiUrl = Environment.GetEnvironmentVariable("NAGER_API_URL") 
                   ?? throw new ArgumentNullException("NAGER_API_URL environment variable is missing.");
+        _httpClient = new HttpClient();
     }
 
-    public Task<List<Holiday>> GetNatHolidaysForCountryForYear(string countryCode, int year)
+    public async Task<List<Holiday>> GetNatHolidaysForCountryForYear(string countryCode, int year)
     {
-        // TODO: Implement actual Nager API call using _apiUrl
         Console.WriteLine($"[NagerApi] Fetching holidays for {countryCode} in {year} using {_apiUrl}...");
-        return Task.FromResult(new List<Holiday>());
+        
+        var apiCountryCode = countryCode.Contains('-') ? countryCode.Split('-')[0] : countryCode;
+        var requestUri = $"{_apiUrl}/PublicHolidays/{year}/{apiCountryCode}";
+
+        try
+        {
+            var response = await _httpClient.GetAsync(requestUri);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return new List<Holiday>();
+            }
+
+            var jsonContent = await response.Content.ReadAsStringAsync();
+
+            if (string.IsNullOrWhiteSpace(jsonContent))
+            {
+                return new List<Holiday>();
+            }
+
+            var apiHolidays = JsonSerializer.Deserialize<List<PublicHolidayDto>>(jsonContent, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+
+            if (apiHolidays == null || !apiHolidays.Any())
+            {
+                return new List<Holiday>();
+            }
+
+            return apiHolidays
+                .Where(dto => dto.Global || (dto.Counties?.Contains(countryCode) ?? false))
+                .Select(dto => new Holiday
+                {
+                    CountryCode = countryCode,
+                    Date = dto.Date,
+                    Description = dto.Name ?? dto.LocalName ?? "Unknown Holiday"
+                })
+                .ToList();
+        }
+        catch (Exception)
+        {
+            return new List<Holiday>();
+        }
     }
 
-    public Task<List<Holiday>> GetNatHolidaysForCountryForYearNoWeekends(string countryCode, int year)
+    public async Task<List<Holiday>> GetNatHolidaysForCountryForYearNoWeekends(string countryCode, int year)
     {
-        // TODO: Implement actual Nager API call and filter weekends
         Console.WriteLine($"[NagerApi] Fetching holidays for {countryCode} in {year} (No Weekends)...");
-        return Task.FromResult(new List<Holiday>());
+        var holidays = await GetNatHolidaysForCountryForYear(countryCode, year);
+
+        return holidays
+            .Where(h => h.Date.DayOfWeek != DayOfWeek.Saturday && h.Date.DayOfWeek != DayOfWeek.Sunday)
+            .ToList();
+    }
+
+    private class PublicHolidayDto
+    {
+        public DateTime Date { get; set; }
+        public string? LocalName { get; set; }
+        public string? Name { get; set; }
+        public string[]? Counties { get; set; }
+        public bool Global { get; set; }
     }
 }

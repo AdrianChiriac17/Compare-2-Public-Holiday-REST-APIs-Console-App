@@ -25,7 +25,8 @@ public class NagerApi : IHolidayProvider
     {
         Console.WriteLine($"[NagerApi] Fetching holidays for {countryCode} in {year} using {_apiUrl}...");
         
-        var apiCountryCode = countryCode.Contains('-') ? countryCode.Split('-')[0] : countryCode;
+        bool isRegionalRequest = countryCode.Length > 2;
+        var apiCountryCode = isRegionalRequest ? countryCode.Split('-')[0] : countryCode;
         var requestUri = $"{_apiUrl}/PublicHolidays/{year}/{apiCountryCode}";
 
         try
@@ -44,7 +45,7 @@ public class NagerApi : IHolidayProvider
                 return new List<Holiday>();
             }
 
-            var apiHolidays = JsonSerializer.Deserialize<List<PublicHolidayDto>>(jsonContent, new JsonSerializerOptions
+            var apiHolidays = JsonSerializer.Deserialize<List<NagerHolidayDto>>(jsonContent, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });
@@ -54,8 +55,24 @@ public class NagerApi : IHolidayProvider
                 return new List<Holiday>();
             }
 
-            return apiHolidays
-                .Where(dto => dto.Global || (dto.Counties?.Contains(countryCode) ?? false))
+            var nationalHolidays = apiHolidays
+                .Where(dto => 
+                {
+                    // Global applies to the whole country regardless of region
+                    if (dto.Global)
+                    {
+                        return true;
+                    }
+
+                    // If they want plain GB, they only get Global. They do NOT get local counties.
+                    if (!isRegionalRequest)
+                    {
+                        return false;
+                    }
+
+                    // If they explicitly requested a region (e.g. GB-ENG), check counties
+                    return dto.Counties != null && dto.Counties.Contains(countryCode, StringComparer.OrdinalIgnoreCase);
+                })
                 .Select(dto => new Holiday
                 {
                     CountryCode = countryCode,
@@ -63,6 +80,8 @@ public class NagerApi : IHolidayProvider
                     Description = dto.Name ?? dto.LocalName ?? "Unknown Holiday"
                 })
                 .ToList();
+            
+            return nationalHolidays;
         }
         catch (Exception)
         {
@@ -80,7 +99,7 @@ public class NagerApi : IHolidayProvider
             .ToList();
     }
 
-    private class PublicHolidayDto
+    private class NagerHolidayDto
     {
         public DateTime Date { get; set; }
         public string? LocalName { get; set; }

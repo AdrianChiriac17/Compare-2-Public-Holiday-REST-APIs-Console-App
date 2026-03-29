@@ -2,6 +2,7 @@
 using HolidayApiComparer.Interfaces;
 using HolidayApiComparer.Services;
 using DotNetEnv;
+using HolidayApiComparer.Models;
 
 // Load environment variables from .env file
 DotNetEnv.Env.TraversePath().Load();
@@ -16,17 +17,11 @@ var serviceProvider = new ServiceCollection()
 var nagerService = serviceProvider.GetRequiredKeyedService<IHolidayProvider>("nager");
 var calendarificService = serviceProvider.GetRequiredKeyedService<IHolidayProvider>("calendarific");
 
-// Test call
-var nagerHolidays = await nagerService.GetNatHolidaysForCountryForYear("RO", 2026);
-Console.WriteLine($"\n--- Nager API Holidays for RO in 2026 ({nagerHolidays.Count}) ---");
-foreach (var holiday in nagerHolidays)
+List<Holiday> englishHolidays = await calendarificService.GetNatHolidaysForCountryForYearNoWeekends("GB-ENG", 2026);
+foreach( Holiday holiday in englishHolidays )
 {
-    Console.WriteLine($"- {holiday.Date:yyyy-MM-dd}: {holiday.Description}");
+    Console.WriteLine($"Holiday: {holiday.Description} on {holiday.Date.ToShortDateString()}");
 }
 
-var calendarificHolidays = await calendarificService.GetNatHolidaysForCountryForYear("RO", 2026);
-Console.WriteLine($"\n--- Calendarific API Holidays for US in 2026 ({calendarificHolidays.Count}) ---");
-foreach (var holiday in calendarificHolidays)
-{
-    Console.WriteLine($"- {holiday.Date:yyyy-MM-dd}: {holiday.Description}");
-}
+var comparer = new ApiComparerService(nagerService, calendarificService);
+await comparer.RunComparisonsAsync(2026);
